@@ -1,91 +1,159 @@
-import React, { useEffect, useState } from 'react'
-import { Box, Typography, TextField, Button } from '@mui/material'
-import { useUser } from '@/context/user-context' // Assuming you're using context to manage user state
-import { getUser } from '@/api/userApi'
+import React, { useState, useEffect } from 'react'
+import { Button, TextField, Grid, Typography, Container, Box, List, ListItem, IconButton } from '@mui/material'
+import { Add, Delete } from '@mui/icons-material'
+import axios from 'axios'
 
-const ProfilePage = () => {
-  const { user } = useUser() // Assuming you're using context to store logged-in user data
-  const [profileData, setProfileData] = useState<any>(null) // Store fetched user profile data
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string>('')
+const MyProfile: React.FC = () => {
+  const [school, setSchool] = useState('')
+  const [filiere, setFiliere] = useState('')
+  const [year, setYear] = useState('')
+  const [classes, setClasses] = useState<{ school: string; filiere: string; year: string }[]>([])
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [uid, setUid] = useState(localStorage.getItem('uid') || '')
 
+  // Charger les classes à partir de l'API
   useEffect(() => {
-    if (user?.uid) {
-      // Fetch user profile data when the component mounts
-      const fetchProfile = async () => {
-        try {
-          const data = await getUser(user.uid) // Fetch user data based on UID
-          setProfileData(data)
-        } catch (err) {
-          setError('Error fetching user profile')
-        } finally {
-          setLoading(false)
-        }
+    const fetchClasses = async () => {
+      if (!uid) {
+        setError('User ID not found in localStorage.')
+        return
       }
 
-      fetchProfile()
+      try {
+        const response = await axios.get(`http://localhost:5000/api/profile/${uid}`)
+        if (response.status === 200) {
+          setClasses(response.data.classes || [])
+        }
+      } catch (err: any) {
+        setError('Error fetching classes: ' + err.response?.data?.message || err.message)
+      }
     }
-  }, [user])
 
-  const handleUpdate = async () => {
-    // Handle profile update functionality (optional)
-    console.log('Updating profile...')
-    // You would send the updated data to your backend here
+    fetchClasses()
+  }, [uid])
+
+  const handleAddClass = () => {
+    if (!school || !filiere || !year) {
+      setError('All fields are required to add a class.')
+      return
+    }
+
+    setClasses([...classes, { school, filiere, year }])
+    setSchool('')
+    setFiliere('')
+    setYear('')
+    setError('')
   }
 
-  if (loading) return <Typography>Loading...</Typography>
-  if (error) return <Typography color="error">{error}</Typography>
+  const handleRemoveClass = (index: number) => {
+    setClasses(classes.filter((_, i) => i !== index))
+  }
+
+  const handleSaveProfile = async () => {
+    if (!uid) {
+      setError('User ID is required.')
+      return
+    }
+
+    try {
+      const response = await axios.put('http://localhost:5000/api/profile', {
+        uid,
+        classes,
+      })
+
+      if (response.status === 200) {
+        setSuccess('Profile updated successfully.')
+        setError('')
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Something went wrong.')
+      setSuccess('')
+    }
+  }
 
   return (
-    <Box sx={{ padding: 3 }}>
-      <Typography variant="h4">Profile</Typography>
-      {profileData && (
-        <Box sx={{ mt: 2 }}>
-          <TextField
-            label="Name"
-            variant="outlined"
-            fullWidth
-            value={profileData.name || ''}
-            margin="normal"
-            disabled
-          />
-          <TextField
-            label="School"
-            variant="outlined"
-            fullWidth
-            value={profileData.school || ''}
-            margin="normal"
-            disabled
-          />
-          <TextField
-            label="Year"
-            variant="outlined"
-            fullWidth
-            value={profileData.year || ''}
-            margin="normal"
-            disabled
-          />
-          <TextField
-            label="Filière"
-            variant="outlined"
-            fullWidth
-            value={profileData.filiere || ''}
-            margin="normal"
-            disabled
-          />
+    <Container>
+      <Box sx={{ marginTop: 4 }}>
+        <Typography variant="h4" gutterBottom>
+          Update Your Profile
+        </Typography>
 
-          <Button
-            variant="contained"
-            color="primary"
-            sx={{ mt: 2 }}
-            onClick={handleUpdate} // For updating profile (optional)
-          >
-            Update Profile
-          </Button>
-        </Box>
-      )}
-    </Box>
+        {/* Section pour ajouter une classe */}
+        <Grid container spacing={3}>
+          <Grid item xs={12} sm={4}>
+            <TextField
+              label="School"
+              variant="outlined"
+              fullWidth
+              value={school}
+              onChange={(e) => setSchool(e.target.value)}
+            />
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <TextField
+              label="Filière"
+              variant="outlined"
+              fullWidth
+              value={filiere}
+              onChange={(e) => setFiliere(e.target.value)}
+            />
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <TextField
+              label="Year"
+              variant="outlined"
+              fullWidth
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <Button variant="outlined" onClick={handleAddClass}>
+              Add Class
+            </Button>
+          </Grid>
+        </Grid>
+
+        {/* Section pour afficher les classes gérées */}
+        {classes.length > 0 && (
+          <Box sx={{ marginTop: 4 }}>
+            <Typography variant="h5" gutterBottom>
+              Managed Classes
+            </Typography>
+            <List>
+              {classes.map((cls, index) => (
+                <ListItem key={index}>
+                  {cls.school} - {cls.filiere} - {cls.year}
+                  <IconButton onClick={() => handleRemoveClass(index)}>
+                    <Delete />
+                  </IconButton>
+                </ListItem>
+              ))}
+            </List>
+          </Box>
+        )}
+
+        {/* Messages d'erreur ou de succès */}
+        {error && (
+          <Typography color="error" sx={{ marginTop: 2 }}>
+            {error}
+          </Typography>
+        )}
+
+        {success && (
+          <Typography color="success" sx={{ marginTop: 2 }}>
+            {success}
+          </Typography>
+        )}
+
+        {/* Bouton pour sauvegarder les modifications */}
+        <Button variant="contained" color="primary" onClick={handleSaveProfile} sx={{ marginTop: 4 }}>
+          Save Profile
+        </Button>
+      </Box>
+    </Container>
   )
 }
 
-export default ProfilePage
+export default MyProfile

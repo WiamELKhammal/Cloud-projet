@@ -48,28 +48,25 @@ const SignInForm: React.FC<SignInFormProps> = ({ closeModal, role, switchToSignU
       const userCredential = await signInWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
 
-      // Fetch user data from backend
+      // Save uid in localStorage
+      localStorage.setItem('uid', user.uid)
+
       const userData = await getUser(user.uid)
-
       if (userData) {
-        // Check if the role from the backend matches the selected role
-        if (userData.role !== role) {
-          setError(
-            `You signed up as a ${userData.role}, but you're trying to log in as a ${role}. Please log in with the correct role.`
-          )
-          return
-        }
-
-        // Proceed with successful login
-        setUser({ ...user, role: userData.role })
-        onLogin(user)
+        // Proceed with your logic
+        onLogin(userData)
         closeModal()
       } else {
         setError('No matching user data found in the backend. Please sign up first.')
       }
-    } catch (err: any) {
-      setError('Invalid email or password. Please try again.')
-      console.error('SignIn Error:', err.message)
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error('SignIn Error:', err.message)
+        setError('Invalid email or password. Please try again.')
+      } else {
+        console.error('Unexpected SignIn Error:', err)
+        setError('An unexpected error occurred. Please try again.')
+      }
     }
   }
 

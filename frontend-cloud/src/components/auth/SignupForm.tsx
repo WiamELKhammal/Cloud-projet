@@ -70,15 +70,21 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ closeModal, role, switchToSignI
     try {
       const result = await signInWithPopup(auth, provider)
       const user = result.user
-      onLogin(user)
 
-      // Store user in DB
-      await storeUserInDb(user, '') // Google sign-up doesn't have a password, so pass empty string
+      // Save uid in localStorage
+      localStorage.setItem('uid', user.uid)
 
+      const userData = await storeUserInDb(user, '') // Assuming storeUserInDb handles social logins
+      onLogin(userData)
       closeModal()
-    } catch (err: any) {
-      console.error('Error signing up with Google: ', err.message)
-      setError('Error signing up with Google. Please try again.')
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error('Error signing up with Google: ', err.message)
+        setError('Error signing up with Google. Please try again.')
+      } else {
+        console.error('Unexpected error signing up with Google: ', err)
+        setError('An unexpected error occurred. Please try again.')
+      }
     }
   }
 

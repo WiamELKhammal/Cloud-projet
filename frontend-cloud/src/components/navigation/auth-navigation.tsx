@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
@@ -13,11 +13,23 @@ import { AccountCircle, School, Person, ArrowDropDown } from '@mui/icons-materia
 const AuthNavigation = () => {
   const [role, setRole] = useState<'student' | 'teacher' | null>(null)
   const [authType, setAuthType] = useState<'signin' | 'signup'>('signin')
-  const [loggedInUser, setLoggedInUser] = useState<{ name: string; email: string; role: 'student' | 'teacher' } | null>(
-    null
-  )
+  const [loggedInUser, setLoggedInUser] = useState<{
+    name: string
+    email: string
+    role: 'student' | 'teacher'
+  } | null>(null)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const router = useRouter()
+
+  // Load user from localStorage on client side
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedUser = localStorage.getItem('loggedInUser')
+      if (savedUser) {
+        setLoggedInUser(JSON.parse(savedUser))
+      }
+    }
+  }, [])
 
   const handleRoleSelect = (selectedRole: 'student' | 'teacher') => {
     setRole(selectedRole)
@@ -38,7 +50,18 @@ const AuthNavigation = () => {
 
   const handleLogout = () => {
     setLoggedInUser(null)
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('loggedInUser')
+    }
     router.push('/') // Redirect to homepage after logout
+  }
+
+  const handleLogin = (user: { name: string; email: string; role: 'student' | 'teacher' }) => {
+    setLoggedInUser(user)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('loggedInUser', JSON.stringify(user))
+    }
+    closeModal()
   }
 
   return (
@@ -88,7 +111,7 @@ const AuthNavigation = () => {
             {loggedInUser.name || loggedInUser.email}
           </Button>
           <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-            <MenuItem onClick={() => router.push('/ProfilePage')}>Profile</MenuItem>
+            <MenuItem onClick={() => router.push('/TeacherDashboard')}>Profile</MenuItem>
             <MenuItem onClick={handleLogout}>Logout</MenuItem>
           </Menu>
         </Box>
@@ -120,20 +143,14 @@ const AuthNavigation = () => {
               closeModal={closeModal}
               role={role!}
               switchToSignUp={() => setAuthType('signup')}
-              onLogin={(user) => {
-                setLoggedInUser(user)
-                closeModal()
-              }}
+              onLogin={handleLogin}
             />
           ) : (
             <SignUpForm
               closeModal={closeModal}
               role={role!}
               switchToSignIn={() => setAuthType('signin')}
-              onLogin={(user) => {
-                setLoggedInUser(user)
-                closeModal()
-              }}
+              onLogin={handleLogin}
             />
           )}
         </Box>
