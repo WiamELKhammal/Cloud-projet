@@ -3,6 +3,10 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const bcrypt = require('bcryptjs'); // For password hashing
 const { createClient } = require('@supabase/supabase-js'); // Supabase client
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage() });
+
+const { ObjectId } = require('mongodb');
 
 const app = express();
 app.use(cors());
@@ -13,6 +17,25 @@ const SUPABASE_URL = 'https://kcezwoembsfctttahjgc.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjZXp3b2VtYnNmY3R0dGFoamdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzI1NTEwMjksImV4cCI6MjA0ODEyNzAyOX0.wDAbB9KxgNd2zbRDGKomUC5yhnsRIs9qvc6znGlwn7Q'; // The anon key for public access
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Ensure GridFS is using the native MongoDB driver from Mongoose
+const mongoose = require('mongoose');
+
+// Connect to MongoDB
+mongoose.connect('mongodb+srv://EduCollab:EduCollab@educollab.cilvj.mongodb.net/EduCollabDB?retryWrites=true&w=majority', {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+});
+
+const conn = mongoose.connection;
+let bucket;
+
+// Initialize GridFSBucket after the connection is open
+conn.once('open', () => {
+    bucket = new mongoose.mongo.GridFSBucket(conn.db, { bucketName: 'uploads' });
+    console.log('GridFSBucket initialized');
+});
+
 
 // --- ROUTES ---
 // 1. Register User (Sign Up)
@@ -69,69 +92,170 @@ app.get('/api/users/:uid', async (req, res) => {
 });
 
 // 3. Add a New Project (POST)
-app.post('/api/projects', async (req, res) => {
+app.post('/api/projects', upload.single('file'), async (req, res) => {
     const { title, description, school, filiere, matiere, deadline, status, year, teacher_uid } = req.body;
 
     try {
-        const { data, error } = await supabase.from('projects').insert([
-            {
-                title,
-                description,
-                school,
-                filiere,
-                matiere,
-                deadline,
-                status,
-                year,
-                teacher_uid
+        let fileId = null;
+
+        if (req.file) {
+            console.log('File received, starting upload to MongoDB...');
+
+            fileId = await new Promise((resolve, reject) => {
+                const uploadStream = bucket.openUploadStream(req.file.originalname, {
+                    contentType: req.file.mimetype,
+                });
+
+                uploadStream.on('error', (err) => {
+                    console.error('Error writing to GridFS:', err);
+                    reject(new Error('File upload failed'));
+                });
+
+                uploadStream.on('finish', () => {
+                    console.log('Upload complete. File ID:', uploadStream.id);
+                    resolve(uploadStream.id.toString());
+                });
+
+                uploadStream.end(req.file.buffer);
+            });
+
+            // Check if fileId was successfully generated
+            if (!fileId) {
+                console.error('File upload did not return a valid file ID');
+            } else {
+                console.log('File ID generated:', fileId);
             }
-        ]);
+        }
+
+        // Save project data to Supabase
+        const { data, error } = await supabase.from('projects').insert([{
+            title,
+            description,
+            school,
+            filiere,
+            matiere,
+            deadline,
+            status,
+            year,
+            teacher_uid,
+            fileId // Store the MongoDB file ID
+        }]);
 
         if (error) {
             console.error('Error adding project:', error);
-            return res.status(500).json({ message: 'Error adding project' });
+            return res.status(500).json({ message: 'Error adding project', error: error.message });
         }
 
+        console.log('Project successfully added to Supabase:', data[0]);
         res.status(201).json({ project: data[0] });
     } catch (error) {
         console.error('Error:', error);
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
 
-// 4. Get All Projects (GET)
-// 4. Get All Projects (GET)
-app.get('/api/projects', async (req, res) => {
-    const { teacher_uid, school, filiere, year } = req.query;
-
-    console.log("Received query params:", req.query);  // Debugging query params
+app.post('/api/projects', upload.single('file'), async (req, res) => {
+    const { title, description, school, filiere, matiere, deadline, status, year, teacher_uid } = req.body;
 
     try {
-        let query = supabase.from('projects').select('*');
+        console.log('Request received with body:', req.body);
+        console.log('Received file:', req.file);
 
-        // Add filters based on query parameters
-        if (teacher_uid) query = query.eq('teacher_uid', teacher_uid);
-        if (school) query = query.eq('school', school);
-        if (filiere) query = query.eq('filiere', filiere);
-        if (year) query = query.eq('year', year);
+        let fileId = null;
 
-        const { data, error } = await query;
+        if (req.file) {
+            console.log('File received, starting upload to MongoDB...');
 
-        if (error) {
-            console.error('Error fetching projects:', error);
-            return res.status(500).json({ message: 'Failed to fetch projects.' });
+            fileId = await new Promise((resolve, reject) => {
+                const uploadStream = bucket.openUploadStream(req.file.originalname, {
+                    contentType: req.file.mimetype,
+                });
+
+                uploadStream.on('error', (err) => {
+                    console.error('Error writing to GridFS:', err);
+                    reject(new Error('File upload failed'));
+                });
+
+                uploadStream.on('finish', () => {
+                    console.log('Upload complete. File ID:', uploadStream.id);
+                    resolve(uploadStream.id.toString());
+                });
+
+                uploadStream.end(req.file.buffer);
+            });
+
+            console.log('Resolved fileId:', fileId);
+        } else {
+            console.warn('No file received for upload');
         }
 
-        console.log("Fetched projects:", data);  // Debugging fetched projects
+        const { data, error } = await supabase.from('projects').insert([{
+            title,
+            description,
+            school,
+            filiere,
+            matiere,
+            deadline,
+            status,
+            year,
+            teacher_uid,
+            fileId
+        }]);
 
-        res.status(200).json(data);
-    } catch (err) {
-        console.error('Error fetching projects:', err);
-        res.status(500).json({ message: 'Failed to fetch projects.' });
+        if (error) {
+            console.error('Error adding project:', error);
+            return res.status(500).json({ message: 'Error adding project', error: error.message });
+        }
+
+        console.log('Project successfully added to Supabase:', data[0]);
+        res.status(201).json({ project: data[0] });
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
 
 
+app.get('/api/files/:id', async (req, res) => {
+  const fileId = req.params.id;
+
+  try {
+    // Validate the ObjectId
+    if (!ObjectId.isValid(fileId)) {
+      return res.status(400).send('Invalid file ID');
+    }
+
+    // Use 'new' to create an instance of ObjectId
+    const downloadStream = bucket.openDownloadStream(new ObjectId(fileId));
+
+    // Set headers for PDF
+    downloadStream.on('file', (file) => {
+      if (file.contentType === 'application/pdf') {
+        res.set({
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `inline; filename="${file.filename}"`, // Inline to view in browser
+        });
+      } else {
+        res.set({
+          'Content-Type': file.contentType,
+          'Content-Disposition': `attachment; filename="${file.filename}"`, // Attachment to force download
+        });
+      }
+    });
+
+    // Stream the file to the client
+    downloadStream.pipe(res);
+
+    // Handle errors
+    downloadStream.on('error', (err) => {
+      console.error('Error retrieving file:', err);
+      res.status(404).send('File not found');
+    });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).send('Server error');
+  }
+});
 
 // 5. Get Projects by Teacher UID (GET)
 app.get('/api/projects/teacher/:teacher_uid', async (req, res) => {
@@ -191,6 +315,23 @@ app.put('/api/profile', async (req, res) => {
     }
 });
 
+
+
+app.get('/files/:filename', (req, res) => {
+    const filename = req.params.filename;
+
+    bucket.find({ filename }).toArray((err, files) => {
+        if (err || !files || files.length === 0) {
+            return res.status(404).json({ message: 'File not found' });
+        }
+
+        const readStream = bucket.openDownloadStreamByName(filename);
+        res.set('Content-Type', files[0].contentType);
+        readStream.pipe(res);
+    });
+});    
+  
+  
 // Start the server
 const PORT = 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
