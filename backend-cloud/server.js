@@ -12,9 +12,9 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// Supabase Configuration (Replace these with your actual values)
-const SUPABASE_URL = 'https://kcezwoembsfctttahjgc.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjZXp3b2VtYnNmY3R0dGFoamdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzI1NTEwMjksImV4cCI6MjA0ODEyNzAyOX0.wDAbB9KxgNd2zbRDGKomUC5yhnsRIs9qvc6znGlwn7Q'; // The anon key for public access
+// Supabase Configuration (Variables d'environnement)
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
