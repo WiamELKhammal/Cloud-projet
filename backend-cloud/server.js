@@ -315,6 +315,53 @@ app.put('/api/profile', async (req, res) => {
     }
 });
 
+// 7. Add a New Deliverable (POST)
+app.post('/api/deliverables', async (req, res) => {
+    const { projectId, studentName, filePath } = req.body;
+
+    if (!projectId || !studentName || !filePath) {
+        return res.status(400).json({ message: 'Missing required fields (projectId, studentName, and filePath are required).' });
+    }
+
+    try {
+        const { data, error } = await supabase.from('deliverables').insert([
+            {
+                projectId,
+                studentName,
+                filePath
+            }
+        ]);
+
+        if (error) {
+            console.error('Error adding deliverable:', error);
+            return res.status(500).json({ message: 'Error adding deliverable' });
+        }
+
+        res.status(201).json({ deliverable: data[0] });
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// 8. Get All Deliverables (GET)
+app.get('/api/deliverables', async (req, res) => {
+    try {
+        const { data, error } = await supabase.from('deliverables').select('*');
+
+        if (error) {
+            console.error('Error fetching deliverables:', error);
+            return res.status(500).json({ message: 'Failed to fetch deliverables.' });
+        }
+
+        res.status(200).json(data);
+    } catch (err) {
+        console.error('Error fetching deliverables:', err);
+        res.status(500).json({ message: 'Failed to fetch deliverables.' });
+    }
+});
+
+
 
 
 app.get('/files/:filename', (req, res) => {
