@@ -16,6 +16,7 @@ import {
   TableRow,
   Paper,
 } from '@mui/material'
+import axios from 'axios'
 
 // Define the project type
 interface Project {
@@ -28,6 +29,7 @@ interface Project {
   status: string
   year: string
   teacher_uid: string
+  fileId?: string
 }
 
 const AddProject: React.FC = () => {
@@ -38,42 +40,34 @@ const AddProject: React.FC = () => {
   const [matiere, setMatiere] = useState('')
   const [deadline, setDeadline] = useState('')
   const [status, setStatus] = useState('Active')
-  const [year, setYear] = useState('1st Year') // Year field
-  const [teacher_uid, setteacher_uid] = useState('') // Will be set from localStorage
-  const [projects, setProjects] = useState<Project[]>([]) // Projects state
+  const [year, setYear] = useState('1st Year')
+  const [teacher_uid, setTeacherUid] = useState('')
+  const [projects, setProjects] = useState<Project[]>([])
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
+  // Fetch UID from localStorage and fetch projects for that UID
   useEffect(() => {
     const storedUid = localStorage.getItem('uid')
-    console.log('Retrieved UID from localStorage:', storedUid)
-
     if (storedUid) {
-      setteacher_uid(storedUid)
-
-      // Immediately call fetchProjects with the retrieved UID
+      setTeacherUid(storedUid)
       fetchProjects(storedUid)
     } else {
       console.error('UID not found in localStorage!')
     }
   }, [])
 
-  // Fetch function that accepts a UID directly
+  // Fetch projects based on teacher UID
   const fetchProjects = async (uid: string) => {
     try {
       const response = await fetch(`http://localhost:5000/api/projects/teacher/${uid}`)
       const data = await response.json()
-
-      if (data && data.length > 0) {
-        setProjects(data)
-        console.log('Fetched projects:', data)
-      } else {
-        console.warn('No projects found for this UID.')
-      }
+      setProjects(data)
     } catch (error) {
       console.error('Error fetching projects:', error)
     }
   }
 
-  // Handle form submission to add a new project
+  // Handle form submission to add a project
   const handleAddProject = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -91,42 +85,40 @@ const AddProject: React.FC = () => {
       deadline,
       status,
       year,
-      teacher_uid, // Use snake_case here to match the backend
+      teacher_uid,
+      fileId: '', // Placeholder for file ID
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/projects', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newProject),
+      const formData = new FormData()
+
+      // Append project data directly without stringifying
+      for (const key in newProject) {
+        formData.append(key, newProject[key])
+      }
+
+      if (selectedFile) {
+        formData.append('file', selectedFile)
+      }
+
+      // Debug: Log formData
+      for (let [key, value] of formData.entries()) {
+        console.log(`${key}:`, value)
+      }
+
+      const response = await axios.post('http://localhost:5000/api/projects', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       })
 
-      if (response.ok) {
-        const addedProject = await response.json()
-        console.log('Project added successfully:', addedProject)
-
-        // Add the newly added project to the list of projects
-        setProjects([...projects, addedProject.project])
-
-        // Reset form fields
-        setTitle('')
-        setDescription('')
-        setSchool('')
-        setFiliere('')
-        setMatiere('')
-        setDeadline('')
-        setStatus('Active')
-        setYear('1st Year')
+      if (response.data && response.data.project) {
+        setProjects([...projects, response.data.project])
       } else {
-        console.error('Error adding project')
+        console.error('Failed to add project')
       }
     } catch (error) {
       console.error('Error:', error)
     }
   }
-
   return (
     <Box sx={{ padding: 3 }}>
       <Typography variant="h5" gutterBottom>
@@ -134,6 +126,7 @@ const AddProject: React.FC = () => {
       </Typography>
 
       <form onSubmit={handleAddProject}>
+        {/* Form fields for project details */}
         <TextField
           label="Title"
           variant="outlined"
@@ -188,9 +181,7 @@ const AddProject: React.FC = () => {
           onChange={(e) => setDeadline(e.target.value)}
           sx={{ marginBottom: 2 }}
           required
-          InputLabelProps={{
-            shrink: true,
-          }}
+          InputLabelProps={{ shrink: true }}
         />
         <FormControl fullWidth sx={{ marginBottom: 2 }} required>
           <InputLabel>Status</InputLabel>
@@ -209,6 +200,18 @@ const AddProject: React.FC = () => {
             <MenuItem value="3rd Year">3rd Year</MenuItem>
           </Select>
         </FormControl>
+
+        {/* File Upload */}
+        <input
+          type="file"
+          onChange={(e) => setSelectedFile(e.target.files ? e.target.files[0] : null)}
+          style={{ marginBottom: '16px' }}
+        />
+        {selectedFile && (
+          <Typography variant="body2" color="textSecondary">
+            Selected file: {selectedFile.name}
+          </Typography>
+        )}
 
         <Button type="submit" variant="contained" color="primary">
           Add Project
@@ -229,7 +232,8 @@ const AddProject: React.FC = () => {
               <TableCell>Matiere</TableCell>
               <TableCell>Deadline</TableCell>
               <TableCell>Status</TableCell>
-              <TableCell>Year</TableCell> {/* Added year column */}
+              <TableCell>Year</TableCell>
+              <TableCell>File</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -242,7 +246,18 @@ const AddProject: React.FC = () => {
                 <TableCell>{project.matiere}</TableCell>
                 <TableCell>{project.deadline}</TableCell>
                 <TableCell>{project.status}</TableCell>
-                <TableCell>{project.year}</TableCell> {/* Displaying year */}
+                <TableCell>{project.year}</TableCell>
+                <TableCell>
+                  {project.fileId && (
+                    <a
+                      href={`http://localhost:5000/api/files/${project.fileId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      View File
+                    </a>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
