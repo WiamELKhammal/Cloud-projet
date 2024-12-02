@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Select,
-  MenuItem,
   TextField,
   Button,
   Box,
   Typography,
+  MenuItem,
+  Select,
+  InputLabel,
+  FormControl,
   Table,
   TableBody,
   TableCell,
@@ -14,184 +16,210 @@ import {
   TableRow,
   Paper,
 } from '@mui/material';
+import axios from 'axios';
 
+// Define the project type
 interface Project {
   id: string;
   title: string;
+  description: string;
   school: string;
   filiere: string;
   matiere: string;
-  year: string;
   deadline: string;
+  status: string;
+  year: string;
+  fileId?: string;
+}
+
+// Define the deliverable type
+interface Deliverable {
+  id: string;
+  deliverable_name: string;
+  project_id: string;
+  created_at: string;
 }
 
 const StudentDashboard: React.FC = () => {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [filters, setFilters] = useState({
     school: '',
     filiere: '',
     matiere: '',
     year: '',
   });
-  const [deliverable, setDeliverable] = useState<File | null>(null);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [deliverable, setDeliverable] = useState('');
+  const [selectedProject, setSelectedProject] = useState('');
 
-  useEffect(() => {
-    fetchProjects();
-  }, []);
-
-  const fetchProjects = async () => {
+  // Fetch projects based on filters
+  const fetchFilteredProjects = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/projects');
-      const data = await response.json();
-      if (data) {
-        setProjects(data);
-        setFilteredProjects([]);
-      } else {
-        console.warn('Aucun projet trouvé.');
-      }
+      const response = await axios.get('http://localhost:5000/api/projects', {
+        params: filters,
+      });
+      setProjects(response.data);
     } catch (error) {
-      console.error('Erreur lors du chargement des projets :', error);
+      console.error('Error fetching projects:', error);
     }
   };
 
-  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle filter changes
+  const handleFilterChange = (e: React.ChangeEvent<{ name?: string; value: unknown }>) => {
     const { name, value } = e.target;
-    setFilters({ ...filters, [name]: value });
+    setFilters((prevFilters) => ({
+      ...prevFilters,
+      [name as string]: value,
+    }));
   };
 
-  const handleYearChange = (e: React.ChangeEvent<{ value: unknown }>) => {
-    setFilters({ ...filters, year: e.target.value as string });
-  };
+  // Handle deliverable submission
+  const handleDeliverableSubmit = async () => {
+    if (!selectedProject) {
+      alert('Please select a project to add a deliverable.');
+      return;
+    }
 
-  const applyFilters = () => {
-    const filtered = projects.filter((project) => {
-      return (
-        (!filters.school || project.school.includes(filters.school)) &&
-        (!filters.filiere || project.filiere.includes(filters.filiere)) &&
-        (!filters.matiere || project.matiere.includes(filters.matiere)) &&
-        (!filters.year || project.year === filters.year)
-      );
-    });
-    setFilteredProjects(filtered);
-  };
-
-  const handleUploadDeliverable = () => {
-    if (selectedProjectId && deliverable) {
-      console.log(`Livrable téléchargé pour le projet ${selectedProjectId}:`, deliverable);
-      setDeliverable(null); // Réinitialise après l'envoi
-    } else {
-      console.log('Veuillez sélectionner un projet et un fichier.');
+    try {
+      const response = await axios.post('http://localhost:5000/api/deliverables', {
+        deliverable_name: deliverable,
+        project_id: selectedProject,
+      });
+      alert('Deliverable added successfully!');
+      setDeliverable('');
+      setSelectedProject('');
+    } catch (error) {
+      console.error('Error adding deliverable:', error);
     }
   };
 
   return (
     <Box sx={{ padding: 3 }}>
       <Typography variant="h5" gutterBottom>
-        Filter Projects
+        Student Dashboard - Filter Projects
       </Typography>
+
+      {/* Filter Section */}
       <Box sx={{ display: 'flex', gap: 2, marginBottom: 2 }}>
         <TextField
           label="School"
           name="school"
+          variant="outlined"
           value={filters.school}
           onChange={handleFilterChange}
-          variant="outlined"
-          fullWidth
         />
         <TextField
           label="Filiere"
           name="filiere"
+          variant="outlined"
           value={filters.filiere}
           onChange={handleFilterChange}
-          variant="outlined"
-          fullWidth
         />
         <TextField
           label="Matiere"
           name="matiere"
+          variant="outlined"
           value={filters.matiere}
           onChange={handleFilterChange}
-          variant="outlined"
-          fullWidth
         />
-        <Select
-          value={filters.year}
-          label="Year"
-          name="year"
-          onChange={handleYearChange}
-          variant="outlined"
-          fullWidth
-          inputProps={{ style: { textAlign: 'center' } }}
-        >
-          <MenuItem value="1st Year">1st Year</MenuItem>
-          <MenuItem value="2nd Year">2nd Year</MenuItem>
-          <MenuItem value="3rd Year">3rd Year</MenuItem>
-        </Select>
-        <Button variant="contained" color="primary" onClick={applyFilters}>
-          Search
-        </Button>
+        <FormControl variant="outlined">
+          <InputLabel>Year</InputLabel>
+          <Select
+            name="year"
+            value={filters.year}
+            onChange={handleFilterChange}
+            label="Year"
+          >
+            <MenuItem value="">All Years</MenuItem>
+            <MenuItem value="1st Year">1st Year</MenuItem>
+            <MenuItem value="2nd Year">2nd Year</MenuItem>
+            <MenuItem value="3rd Year">3rd Year</MenuItem>
+          </Select>
+        </FormControl>
       </Box>
 
-      {filteredProjects.length > 0 ? (
-        <>
-          <Typography variant="h6" gutterBottom>
-            Filtered Projects
-          </Typography>
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Title</TableCell>
-                  <TableCell>School</TableCell>
-                  <TableCell>Filiere</TableCell>
-                  <TableCell>Matiere</TableCell>
-                  <TableCell>Year</TableCell>
-                  <TableCell>Deadline</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredProjects.map((project) => (
-                  <TableRow key={project.id}>
-                    <TableCell>{project.title}</TableCell>
-                    <TableCell>{project.school}</TableCell>
-                    <TableCell>{project.filiere}</TableCell>
-                    <TableCell>{project.matiere}</TableCell>
-                    <TableCell>{project.year}</TableCell>
-                    <TableCell>{project.deadline}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </>
-      ) : (
-        <Typography variant="h6" gutterBottom>
-          Aucun projet correspondant aux critères.
-        </Typography>
-      )}
+      <Button variant="contained" color="primary" onClick={fetchFilteredProjects}>
+        Search Projects
+      </Button>
 
+      {/* Project List Table */}
       <Typography variant="h6" sx={{ marginTop: 4 }}>
-        Upload Deliverable
+        Project Results
       </Typography>
-      <Box sx={{ marginTop: 2 }}>
-        <input
-          type="file"
-          onChange={(e) =>
-            setDeliverable(e.target.files ? e.target.files[0] : null)
-          }
-        />
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleUploadDeliverable}
-          disabled={!selectedProjectId || !deliverable}
-          sx={{ marginLeft: 2 }}
+      <TableContainer component={Paper} sx={{ marginTop: 2 }}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Title</TableCell>
+              <TableCell>Description</TableCell>
+              <TableCell>School</TableCell>
+              <TableCell>Filiere</TableCell>
+              <TableCell>Matiere</TableCell>
+              <TableCell>Deadline</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Year</TableCell>
+              <TableCell>File</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {projects.map((project) => (
+              <TableRow key={project.id}>
+                <TableCell>{project.title}</TableCell>
+                <TableCell>{project.description}</TableCell>
+                <TableCell>{project.school}</TableCell>
+                <TableCell>{project.filiere}</TableCell>
+                <TableCell>{project.matiere}</TableCell>
+                <TableCell>{project.deadline}</TableCell>
+                <TableCell>{project.status}</TableCell>
+                <TableCell>{project.year}</TableCell>
+                <TableCell>
+                  {project.fileId && (
+                    <a
+                      href={`http://localhost:5000/api/files/${project.fileId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      View File
+                    </a>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {/* Deliverable Section */}
+      <Typography variant="h6" sx={{ marginTop: 4 }}>
+        Add Deliverable
+      </Typography>
+      <FormControl variant="outlined" fullWidth sx={{ marginBottom: 2 }}>
+        <InputLabel>Project</InputLabel>
+        <Select
+          value={selectedProject}
+          onChange={(e) => setSelectedProject(e.target.value as string)}
+          label="Project"
         >
-          Upload
-        </Button>
-      </Box>
+          <MenuItem value="">
+            <em>Select a Project</em>
+          </MenuItem>
+          {projects.map((project) => (
+            <MenuItem key={project.id} value={project.id}>
+              {project.title}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+      <TextField
+        label="Deliverable"
+        variant="outlined"
+        fullWidth
+        value={deliverable}
+        onChange={(e) => setDeliverable(e.target.value)}
+        sx={{ marginBottom: 2 }}
+      />
+      <Button variant="contained" color="secondary" onClick={handleDeliverableSubmit}>
+        Submit Deliverable
+      </Button>
     </Box>
   );
 };
