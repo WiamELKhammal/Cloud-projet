@@ -315,52 +315,6 @@ app.put('/api/profile', async (req, res) => {
     }
 });
 
-// 7. Add a New Deliverable (POST)
-app.post('/api/deliverables', async (req, res) => {
-    const { projectId, studentName, filePath } = req.body;
-
-    if (!projectId || !studentName || !filePath) {
-        return res.status(400).json({ message: 'Missing required fields (projectId, studentName, and filePath are required).' });
-    }
-
-    try {
-        const { data, error } = await supabase.from('deliverables').insert([
-            {
-                projectId,
-                studentName,
-                filePath
-            }
-        ]);
-
-        if (error) {
-            console.error('Error adding deliverable:', error);
-            return res.status(500).json({ message: 'Error adding deliverable' });
-        }
-
-        res.status(201).json({ deliverable: data[0] });
-    } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
-// 8. Get All Deliverables (GET)
-app.get('/api/deliverables', async (req, res) => {
-    try {
-        const { data, error } = await supabase.from('deliverables').select('*');
-
-        if (error) {
-            console.error('Error fetching deliverables:', error);
-            return res.status(500).json({ message: 'Failed to fetch deliverables.' });
-        }
-
-        res.status(200).json(data);
-    } catch (err) {
-        console.error('Error fetching deliverables:', err);
-        res.status(500).json({ message: 'Failed to fetch deliverables.' });
-    }
-});
-
 
 
 
@@ -377,6 +331,81 @@ app.get('/files/:filename', (req, res) => {
         readStream.pipe(res);
     });
 });    
+
+
+
+// Add Deliverables API Endpoints
+
+// POST: Add a new deliverable
+app.post('/api/deliverables', async (req, res) => {
+    const { project_id, title, description, file_id, deadline } = req.body;
+
+    if (!project_id || !title || !deadline) {
+        return res.status(400).json({ message: 'Missing required fields (project_id, title, and deadline are required).' });
+    }
+
+    try {
+        // Insert deliverable into Supabase
+        const { data, error } = await supabase.from('deliverables').insert([
+            { project_id, title, description, file_id, deadline }
+        ]);
+
+        if (error) {
+            console.error('Error adding deliverable:', error);
+            return res.status(500).json({ message: 'Error adding deliverable.', error: error.message });
+        }
+
+        res.status(201).json({ message: 'Deliverable added successfully.', deliverable: data[0] });
+    } catch (err) {
+        console.error('Error:', err.message);
+        res.status(500).json({ message: 'Server error while adding deliverable.' });
+    }
+});
+
+// GET: Fetch deliverables by project ID
+app.get('/api/deliverables/:project_id', async (req, res) => {
+    const project_id = req.params.project_id;
+
+    try {
+        // Fetch deliverables from Supabase
+        const { data, error } = await supabase.from('deliverables').select('*').eq('project_id', project_id);
+
+        if (error) {
+            console.error('Error fetching deliverables:', error);
+            return res.status(500).json({ message: 'Error fetching deliverables.', error: error.message });
+        }
+
+        res.json(data);
+    } catch (err) {
+        console.error('Error:', err.message);
+        res.status(500).json({ message: 'Server error while fetching deliverables.' });
+    }
+});
+
+// DELETE: Remove a deliverable by ID
+app.delete('/api/deliverables/:id', async (req, res) => {
+    const id = req.params.id;
+
+    try {
+        // Delete deliverable from Supabase
+        const { data, error } = await supabase.from('deliverables').delete().eq('id', id);
+
+        if (error) {
+            console.error('Error deleting deliverable:', error);
+            return res.status(500).json({ message: 'Error deleting deliverable.', error: error.message });
+        }
+
+        if (data.length === 0) {
+            return res.status(404).json({ message: 'Deliverable not found.' });
+        }
+
+        res.json({ message: 'Deliverable deleted successfully.' });
+    } catch (err) {
+        console.error('Error:', err.message);
+        res.status(500).json({ message: 'Server error while deleting deliverable.' });
+    }
+});
+
   
   
 // Start the server
