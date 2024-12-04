@@ -22,9 +22,11 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Ensure GridFS is using the native MongoDB driver from Mongoose
 const mongoose = require('mongoose');
+// Charger l'URI depuis .env
+const MONGO_URI = process.env.MONGO_URI;
 
-// Connect to MongoDB
-mongoose.connect('mongodb+srv://EduCollab:EduCollab@educollab.cilvj.mongodb.net/EduCollabDB?retryWrites=true&w=majority', {
+// Connectez MongoDB
+mongoose.connect(MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
 });
