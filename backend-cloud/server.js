@@ -5,6 +5,8 @@ const bcrypt = require('bcryptjs'); // For password hashing
 const { createClient } = require('@supabase/supabase-js'); // Supabase client
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage() });
+require('dotenv').config(); // Charger les variables d'environnement
+
 
 const { ObjectId } = require('mongodb');
 
