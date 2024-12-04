@@ -11,11 +11,11 @@ import {
 
 // Firebase config
 const firebaseConfig = {
-  apiKey: 'AIzaSyDucWRZaQcnjEPWwsh541CGwrQ_K73j59M',
-  authDomain: 'educollab-e8e5c.firebaseapp.com',
-  projectId: 'educollab-e8e5c',
-  storageBucket: 'educollab-e8e5c.appspot.com',
-  messagingSenderId: '399469077407',
+  apiKey: 'AIzaSyDH9GSIWM4Ca8SLzIbjEPIRo8_Mt9k4B0k',
+  authDomain: 'educollab-1d250.firebaseapp.com',
+  projectId: 'educollab-1d250',
+  storageBucket: 'educollab-1d250.appspot.com',
+  messagingSenderId: '739298747298',
 }
 
 // Initialize Firebase only if it hasn't been initialized yet
