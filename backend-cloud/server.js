@@ -46,11 +46,14 @@ conn.once('open', () => {
 app.post('/api/users', async (req, res) => {
     const { uid, email, role, name, password } = req.body;
 
-    if (!uid || !email || !role || !password) {
-        return res.status(400).json({ message: 'Missing required fields (uid, email, role, and password are required).' });
+    if (!uid || !email || !role || !name || !password) {
+        return res.status(400).json({ message: 'Missing required fields (uid, email, role, name, and password are required).' });
     }
 
     try {
+        // Log the received request body
+        console.log('Request body:', req.body);
+
         // Hash the password
         const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -70,6 +73,7 @@ app.post('/api/users', async (req, res) => {
         res.status(500).json({ message: 'Error storing user data. Please try again.' });
     }
 });
+
 
 // 2. Public Endpoint to Get User by UID (without authentication)
 app.get('/api/users/:uid', async (req, res) => {
