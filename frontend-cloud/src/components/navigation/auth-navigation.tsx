@@ -111,14 +111,16 @@ const AuthNavigation = () => {
             {loggedInUser.name || loggedInUser.email}
           </Button>
           <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-  {loggedInUser.role === 'teacher' && (
-    <MenuItem onClick={() => router.push('/TeacherDashboard')}>Profile</MenuItem>
-  )}
-  {loggedInUser.role === 'student' && (
-    <MenuItem onClick={() => router.push('/StudentDashboard')}>Profile</MenuItem>
-  )}
-  <MenuItem onClick={handleLogout}>Logout</MenuItem>
-</Menu>
+            {loggedInUser.role === 'teacher' && (
+              <MenuItem onClick={() => router.push('/TeacherDashboard')}>Profile</MenuItem>
+            )}
+
+            {loggedInUser.role === 'teacher' && <MenuItem onClick={() => router.push('/Calendar')}>Calendar</MenuItem>}
+            {loggedInUser.role === 'student' && (
+              <MenuItem onClick={() => router.push('/StudentDashboard')}>Profile</MenuItem>
+            )}
+            <MenuItem onClick={handleLogout}>Logout</MenuItem>
+          </Menu>
 
            
         </Box>
