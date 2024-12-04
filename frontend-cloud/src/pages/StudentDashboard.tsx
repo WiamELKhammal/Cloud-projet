@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
 import {
   TextField,
   Button,
@@ -15,29 +15,52 @@ import {
   TableHead,
   TableRow,
   Paper,
-} from '@mui/material';
-import axios from 'axios';
+  IconButton,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Chip,
+} from '@mui/material'
+import { Edit } from '@mui/icons-material'
+import axios from 'axios'
 
-// Define the project type
 interface Project {
-  id: string;
-  title: string;
-  description: string;
-  school: string;
-  filiere: string;
-  matiere: string;
-  deadline: string;
-  status: string;
-  year: string;
-  fileId?: string;
+  id: string
+  title: string
+  description: string
+  school: string
+  filiere: string
+  matiere: string
+  deadline: string
+  status: string
+  year: string
+  fileId?: string
 }
 
-// Define the deliverable type
-interface Deliverable {
-  id: string;
-  deliverable_name: string;
-  project_id: string;
-  created_at: string;
+const getStatusDetails = (status: string) => {
+  switch (status) {
+    case 'En cours de réalisation':
+      return { label: 'En cours de réalisation', color: 'lightblue' }
+    case 'Progression à 25%':
+      return { label: 'Progression à 25%', color: 'yellow' }
+    case 'Progression à 50%':
+      return { label: 'Progression à 50%', color: 'orange' }
+    case 'Progression à 75%':
+      return { label: 'Progression à 75%', color: 'green' }
+    case 'Finalisation des livrables':
+      return { label: 'Finalisation des livrables', color: 'blue' }
+    case 'Tests finaux':
+      return { label: 'Tests finaux', color: 'purple' }
+    case 'Validation du projet':
+      return { label: 'Validation du projet', color: 'teal' }
+    case 'Préparation à la livraison':
+      return { label: 'Préparation à la livraison', color: 'red' }
+    case 'Projet livré':
+      return { label: 'Projet livré', color: 'green' }
+    default:
+      return { label: 'Active', color: 'gray' }
+  }
 }
 
 const StudentDashboard: React.FC = () => {
@@ -46,51 +69,67 @@ const StudentDashboard: React.FC = () => {
     filiere: '',
     matiere: '',
     year: '',
-  });
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [deliverable, setDeliverable] = useState('');
-  const [selectedProject, setSelectedProject] = useState('');
+  })
+  const [projects, setProjects] = useState<Project[]>([])
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
+  const [newStatus, setNewStatus] = useState('')
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
 
   // Fetch projects based on filters
   const fetchFilteredProjects = async () => {
     try {
       const response = await axios.get('http://localhost:5000/api/projects', {
         params: filters,
-      });
-      setProjects(response.data);
+      })
+      setProjects(response.data)
     } catch (error) {
-      console.error('Error fetching projects:', error);
+      console.error('Error fetching projects:', error)
     }
-  };
+  }
 
   // Handle filter changes
   const handleFilterChange = (e: React.ChangeEvent<{ name?: string; value: unknown }>) => {
-    const { name, value } = e.target;
+    const { name, value } = e.target
     setFilters((prevFilters) => ({
       ...prevFilters,
       [name as string]: value,
-    }));
-  };
+    }))
+  }
 
-  // Handle deliverable submission
-  const handleDeliverableSubmit = async () => {
-    if (!selectedProject) {
-      alert('Please select a project to add a deliverable.');
-      return;
+  // Handle status change
+  // Function to update project status via API
+  const updateProjectStatus = async (projectId: string, status: string) => {
+    try {
+      const response = await axios.put(`http://localhost:5000/api/projects/${projectId}/status`, {
+        status,
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error updating project status:', error)
+      throw error
     }
+  }
+
+  // Handle status change
+  const handleStatusChange = async () => {
+    if (!editingProjectId || !newStatus) return
 
     try {
-      const response = await axios.post('http://localhost:5000/api/deliverables', {
-        deliverable_name: deliverable,
-        project_id: selectedProject,
-      });
-      alert('Deliverable added successfully!');
-      setDeliverable('');
-      setSelectedProject('');
+      await updateProjectStatus(editingProjectId, newStatus)
+      alert('Status updated successfully!')
+      setEditDialogOpen(false)
+      fetchFilteredProjects() // Refresh the project list
     } catch (error) {
-      console.error('Error adding deliverable:', error);
+      alert('Failed to update status. Please try again.')
     }
-  };
+  }
+
+  // Open edit dialog
+  const openEditDialog = (projectId: string, currentStatus: string) => {
+    setEditingProjectId(projectId)
+    setNewStatus(currentStatus)
+    setEditDialogOpen(true)
+  }
 
   return (
     <Box sx={{ padding: 3 }}>
@@ -123,12 +162,7 @@ const StudentDashboard: React.FC = () => {
         />
         <FormControl variant="outlined">
           <InputLabel>Year</InputLabel>
-          <Select
-            name="year"
-            value={filters.year}
-            onChange={handleFilterChange}
-            label="Year"
-          >
+          <Select name="year" value={filters.year} onChange={handleFilterChange} label="Year">
             <MenuItem value="">All Years</MenuItem>
             <MenuItem value="1st Year">1st Year</MenuItem>
             <MenuItem value="2nd Year">2nd Year</MenuItem>
@@ -156,72 +190,85 @@ const StudentDashboard: React.FC = () => {
               <TableCell>Matiere</TableCell>
               <TableCell>Deadline</TableCell>
               <TableCell>Status</TableCell>
+              <TableCell>Actions</TableCell>
               <TableCell>Year</TableCell>
               <TableCell>File</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {projects.map((project) => (
-              <TableRow key={project.id}>
-                <TableCell>{project.title}</TableCell>
-                <TableCell>{project.description}</TableCell>
-                <TableCell>{project.school}</TableCell>
-                <TableCell>{project.filiere}</TableCell>
-                <TableCell>{project.matiere}</TableCell>
-                <TableCell>{project.deadline}</TableCell>
-                <TableCell>{project.status}</TableCell>
-                <TableCell>{project.year}</TableCell>
-                <TableCell>
-                  {project.fileId && (
-                    <a
-                      href={`http://localhost:5000/api/files/${project.fileId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      View File
-                    </a>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
+            {projects.map((project) => {
+              const statusDetails = getStatusDetails(project.status)
+              return (
+                <TableRow key={project.id}>
+                  <TableCell>{project.title}</TableCell>
+                  <TableCell>{project.description}</TableCell>
+                  <TableCell>{project.school}</TableCell>
+                  <TableCell>{project.filiere}</TableCell>
+                  <TableCell>{project.matiere}</TableCell>
+                  <TableCell>{project.deadline}</TableCell>
+                  <TableCell>
+                    {statusDetails && (
+                      <Chip
+                        label={statusDetails.label}
+                        icon={<span>{statusDetails.icon}</span>}
+                        sx={{ backgroundColor: statusDetails.color, color: 'white' }}
+                      />
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <IconButton onClick={() => openEditDialog(project.id, project.status)}>
+                      <Edit />
+                    </IconButton>
+                  </TableCell>
+                  <TableCell>{project.year}</TableCell>
+                  <TableCell>
+                    {project.fileId && (
+                      <a
+                        href={`http://localhost:5000/api/files/${project.fileId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        View File
+                      </a>
+                    )}
+                  </TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </TableContainer>
 
-      {/* Deliverable Section */}
-      <Typography variant="h6" sx={{ marginTop: 4 }}>
-        Add Deliverable
-      </Typography>
-      <FormControl variant="outlined" fullWidth sx={{ marginBottom: 2 }}>
-        <InputLabel>Project</InputLabel>
-        <Select
-          value={selectedProject}
-          onChange={(e) => setSelectedProject(e.target.value as string)}
-          label="Project"
-        >
-          <MenuItem value="">
-            <em>Select a Project</em>
-          </MenuItem>
-          {projects.map((project) => (
-            <MenuItem key={project.id} value={project.id}>
-              {project.title}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-      <TextField
-        label="Deliverable"
-        variant="outlined"
-        fullWidth
-        value={deliverable}
-        onChange={(e) => setDeliverable(e.target.value)}
-        sx={{ marginBottom: 2 }}
-      />
-      <Button variant="contained" color="secondary" onClick={handleDeliverableSubmit}>
-        Submit Deliverable
-      </Button>
+      {/* Edit Status Dialog */}
+      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)}>
+        <DialogTitle>Edit Project Status</DialogTitle>
+        <DialogContent>
+          <FormControl variant="outlined" fullWidth>
+            <InputLabel>Status</InputLabel>
+            <Select value={newStatus} onChange={(e) => setNewStatus(e.target.value as string)} label="Status">
+              <MenuItem value="En cours de réalisation">En cours de réalisation</MenuItem>
+              <MenuItem value="Progression à 25%">Progression à 25%</MenuItem>
+              <MenuItem value="Progression à 50%">Progression à 50%</MenuItem>
+              <MenuItem value="Progression à 75%">Progression à 75%</MenuItem>
+              <MenuItem value="Finalisation des livrables">Finalisation des livrables</MenuItem>
+              <MenuItem value="Tests finaux">Tests finaux</MenuItem>
+              <MenuItem value="Validation du projet">Validation du projet</MenuItem>
+              <MenuItem value="Préparation à la livraison">Préparation à la livraison</MenuItem>
+              <MenuItem value="Projet livré">Projet livré</MenuItem>
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditDialogOpen(false)} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleStatusChange} color="secondary">
+            Save Changes
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
-  );
-};
+  )
+}
 
-export default StudentDashboard;
+export default StudentDashboard
