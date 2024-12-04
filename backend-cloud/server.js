@@ -41,19 +41,14 @@ conn.once('open', () => {
 });
 
 
-// --- ROUTES ---
-// 1. Register User (Sign Up)
 app.post('/api/users', async (req, res) => {
     const { uid, email, role, name, password } = req.body;
 
-    if (!uid || !email || !role || !name || !password) {
-        return res.status(400).json({ message: 'Missing required fields (uid, email, role, name, and password are required).' });
+    if (!uid || !email || !role || !password) {
+        return res.status(400).json({ message: 'Missing required fields (uid, email, role, and password are required).' });
     }
 
     try {
-        // Log the received request body
-        console.log('Request body:', req.body);
-
         // Hash the password
         const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -73,7 +68,6 @@ app.post('/api/users', async (req, res) => {
         res.status(500).json({ message: 'Error storing user data. Please try again.' });
     }
 });
-
 
 // 2. Public Endpoint to Get User by UID (without authentication)
 app.get('/api/users/:uid', async (req, res) => {
@@ -162,66 +156,6 @@ app.post('/api/projects', upload.single('file'), async (req, res) => {
     }
 });
 
-app.post('/api/projects', upload.single('file'), async (req, res) => {
-    const { title, description, school, filiere, matiere, deadline, status, year, teacher_uid } = req.body;
-
-    try {
-        console.log('Request received with body:', req.body);
-        console.log('Received file:', req.file);
-
-        let fileId = null;
-
-        if (req.file) {
-            console.log('File received, starting upload to MongoDB...');
-
-            fileId = await new Promise((resolve, reject) => {
-                const uploadStream = bucket.openUploadStream(req.file.originalname, {
-                    contentType: req.file.mimetype,
-                });
-
-                uploadStream.on('error', (err) => {
-                    console.error('Error writing to GridFS:', err);
-                    reject(new Error('File upload failed'));
-                });
-
-                uploadStream.on('finish', () => {
-                    console.log('Upload complete. File ID:', uploadStream.id);
-                    resolve(uploadStream.id.toString());
-                });
-
-                uploadStream.end(req.file.buffer);
-            });
-
-            console.log('Resolved fileId:', fileId);
-        } else {
-            console.warn('No file received for upload');
-        }
-
-        const { data, error } = await supabase.from('projects').insert([{
-            title,
-            description,
-            school,
-            filiere,
-            matiere,
-            deadline,
-            status,
-            year,
-            teacher_uid,
-            fileId
-        }]);
-
-        if (error) {
-            console.error('Error adding project:', error);
-            return res.status(500).json({ message: 'Error adding project', error: error.message });
-        }
-
-        console.log('Project successfully added to Supabase:', data[0]);
-        res.status(201).json({ project: data[0] });
-    } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
-});
 
 
 app.get('/api/files/:id', async (req, res) => {
@@ -283,6 +217,125 @@ app.get('/api/projects/teacher/:teacher_uid', async (req, res) => {
         res.status(500).json({ message: 'Failed to fetch teacher projects.' });
     }
 });
+// 4. Get Projects with Filters (using Supabase)
+app.get('/api/projects', async (req, res) => {
+    const { school, filiere, matiere, year } = req.query;
+
+    try {
+        // Construire une requête dynamique
+        let query = supabase.from('projects').select('*');
+
+        if (school) {
+            query = query.eq('school', school);
+        }
+        if (filiere) {
+            query = query.eq('filiere', filiere);
+        }
+        if (matiere) {
+            query = query.eq('matiere', matiere);
+        }
+        if (year) {
+            query = query.eq('year', year);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('Erreur lors de la récupération des projets :', error);
+            return res.status(500).json({ message: 'Erreur de récupération des projets.', error: error.message });
+        }
+
+        res.status(200).json(data);
+    } catch (error) {
+        console.error('Erreur serveur :', error);
+        res.status(500).json({ message: 'Erreur serveur.' });
+    }
+});
+app.get('/api/users', async (req, res) => {
+    const { role } = req.query;
+  
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('uid, email, role')
+        .eq('role', role);
+  
+      if (error) {
+        return res.status(500).json({ message: 'Error fetching users', error });
+      }
+  
+      res.status(200).json(data);
+    } catch (err) {
+      res.status(500).json({ message: 'Unexpected server error', error: err.message });
+    }
+  });
+  
+app.get('/api/projects', async (req, res) => {
+    const { startDate, endDate, teacherUid } = req.query;
+
+    // Vérification des paramètres requis
+    if (!teacherUid) {
+        return res.status(400).json({ message: 'Teacher UID is required.' });
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from('projects')
+            .select('id, title, status, created_at, deadline, email, matiere, role, teacher_uid')
+            .eq('role', 'student') // Filtrage par rôle "student"
+            .eq('teacher_uid', teacherUid)
+            .gte('created_at', startDate)
+            .lte('deadline', endDate);
+
+        if (error) {
+            return res.status(500).json({ message: 'Error fetching projects', error });
+        }
+
+        res.status(200).json(data);
+    } catch (err) {
+        res.status(500).json({ message: 'Unexpected server error', error: err.message });
+    }
+});
+
+// 7. Update Project Status (PUT)
+app.put('/api/projects/:id/status', async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    console.log(`Updating project ID: ${id} with status: ${status}`);
+
+    // Vérifie si l'ID et le statut sont valides
+    if (!id || !status) {
+        console.error('ID or status missing');
+        return res.status(400).json({ message: 'ID and status are required.' });
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from('projects')
+            .update({ status })
+            .eq('id', id)
+            .select();
+
+        if (error) {
+            console.error('Supabase error:', error);
+            return res.status(500).json({ message: 'Error updating project status in Supabase.', error });
+        }
+
+        if (!data || data.length === 0) {
+            console.warn('Project not found');
+            return res.status(404).json({ message: 'Project not found.' });
+        }
+
+        console.log('Project updated successfully:', data);
+        res.status(200).json({ message: 'Project status updated successfully.', project: data[0] });
+    } catch (err) {
+        console.error('Unexpected server error:', err);
+        res.status(500).json({ message: 'Unexpected server error.', error: err.message });
+    }
+});
+
+
 
 // 6. Update Profile Data (PUT)
 app.put('/api/profile', async (req, res) => {
@@ -325,7 +378,6 @@ app.put('/api/profile', async (req, res) => {
 
 
 
-
 app.get('/files/:filename', (req, res) => {
     const filename = req.params.filename;
 
@@ -339,10 +391,7 @@ app.get('/files/:filename', (req, res) => {
         readStream.pipe(res);
     });
 });    
-
-
-
-// Add Deliverables API Endpoints
+ // Add Deliverables API Endpoints
 
 // POST: Add a new deliverable
 app.post('/api/deliverables', async (req, res) => {
