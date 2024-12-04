@@ -20,26 +20,31 @@ const SignUpForm: React.FC<SignUpFormProps> = ({ closeModal, role, switchToSignI
   const [successMessage, setSuccessMessage] = useState('')
 
   // Ensure the function is being called correctly to store the user in the database
-  const storeUserInDb = async (user: any, rawPassword: string) => {
-    try {
-      const payload = {
-        uid: user.uid,
-        email: user.email,
-        role, // Assuming role is passed during sign-up
-        name: user.name || null,
-        password: rawPassword ? rawPassword : null, // Send null if password is empty (for Google/GitHub)
-      }
-      console.log('Sending payload to backend:', payload)
+const storeUserInDb = async (user: any, rawPassword: string) => {
+  try {
+    const payload = {
+      uid: user.uid,
+      email: user.email,
+      role, // Récupération du rôle lors de l'inscription
+      name: user.displayName || null, // Utilisation de `displayName` si disponible
+      password: rawPassword ? rawPassword : null,
+    };
+    console.log('Payload envoyé à Supabase:', payload);
 
-      const response = await axios.post('http://localhost:5000/api/users', payload)
+    const response = await axios.post('https://cloud-projet.onrender.com/api/users', payload);
+    console.log('Réponse de l\'API:', response.data);
 
-      console.log('User stored in DB:', response.data)
-      setSuccessMessage('User stored in the database successfully!')
-    } catch (err: any) {
-      console.error('Error storing user in DB:', err.response?.data || err.message)
-      setError(err.response?.data?.message || 'There was an issue storing user data. Please try again.')
+    if (response.status === 201) {
+      setSuccessMessage('Utilisateur enregistré avec succès dans la base de données.');
+    } else {
+      throw new Error('Erreur lors de l\'enregistrement dans la base de données.');
     }
+  } catch (err: any) {
+    console.error('Erreur lors de l\'enregistrement dans la base de données:', err.message);
+    setError(err.response?.data?.message || 'Erreur lors de l\'enregistrement. Veuillez réessayer.');
   }
+}
+
 
   const handleEmailPasswordSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
