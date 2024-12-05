@@ -10,13 +10,13 @@ export default function Calendar() {
     const teacherUid = 'teacherUidDynamique' // Récupère dynamiquement l'UID de l'enseignant
 
     // Récupérer les projets du backend
-    const responseProjects = await fetch(`http://localhost:5000/api/projects?teacherUid=${teacherUid}`)
+    const responseProjects = await fetch(`https://cloud-projet.onrender.com/api/projects?teacherUid=${teacherUid}`)
 
     if (responseProjects.ok) {
       const projects = await responseProjects.json()
 
       // Récupérer les utilisateurs (les étudiants) pour associer l'email
-      const responseUsers = await fetch('http://localhost:5000/api/users?role=student')
+      const responseUsers = await fetch('https://cloud-projet.onrender.com/api/users?role=student')
       if (responseUsers.ok) {
         const users = await responseUsers.json()
 
