@@ -78,7 +78,7 @@ const StudentDashboard: React.FC = () => {
   // Fetch projects based on filters
   const fetchFilteredProjects = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/projects', {
+      const response = await axios.get('https://cloud-projet.onrender.com/api/projects', {
         params: filters,
       })
       setProjects(response.data)
@@ -100,7 +100,7 @@ const StudentDashboard: React.FC = () => {
   // Function to update project status via API
   const updateProjectStatus = async (projectId: string, status: string) => {
     try {
-      const response = await axios.put(`http://localhost:5000/api/projects/${projectId}/status`, {
+      const response = await axios.put(`https://cloud-projet.onrender.com/api/projects/${projectId}/status`, {
         status,
       })
       return response.data
