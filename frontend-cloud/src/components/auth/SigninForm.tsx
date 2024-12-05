@@ -9,7 +9,7 @@ import { useUser } from '@/context/user-context'
 // Fetch user data from the backend
 const getUser = async (uid: string) => {
   try {
-    const response = await fetch(`http://localhost:5000/api/users/${uid}`, {
+    const response = await fetch(`https://cloud-projet.onrender.com/api/users/${uid}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     })
