@@ -59,7 +59,7 @@ const AddProject: React.FC = () => {
   // Fetch projects based on teacher UID
   const fetchProjects = async (uid: string) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/projects/teacher/${uid}`)
+      const response = await fetch(`https://cloud-projet.onrender.com/api/projects/teacher/${uid}`)
       const data = await response.json()
       setProjects(data)
     } catch (error) {
@@ -106,7 +106,7 @@ const AddProject: React.FC = () => {
         console.log(`${key}:`, value)
       }
 
-      const response = await axios.post('http://localhost:5000/api/projects', formData, {
+      const response = await axios.post('https://cloud-projet.onrender.com/api/projects', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
 
